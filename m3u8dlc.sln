@@ -1,0 +1,27 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{0CFFA076-4C43-4BAB-9DA4-3C7E0EA7EB6E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "m3u8dlc", "src\m3u8dlc\m3u8dlc.csproj", "{414CB2E9-F6CC-4C5F-BC36-1F0D3D36CC09}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{414CB2E9-F6CC-4C5F-BC36-1F0D3D36CC09}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{414CB2E9-F6CC-4C5F-BC36-1F0D3D36CC09}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{414CB2E9-F6CC-4C5F-BC36-1F0D3D36CC09}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{414CB2E9-F6CC-4C5F-BC36-1F0D3D36CC09}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{414CB2E9-F6CC-4C5F-BC36-1F0D3D36CC09} = {0CFFA076-4C43-4BAB-9DA4-3C7E0EA7EB6E}
+	EndGlobalSection
+EndGlobal
