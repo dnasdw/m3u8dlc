@@ -1,4 +1,6 @@
-﻿namespace m3u8dlc;
+﻿using System;
+
+namespace m3u8dlc;
 
 class Program
 {
