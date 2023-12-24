@@ -94,6 +94,15 @@ namespace m3u8dlc
 			[DefaultValue(false)]
 			public bool SkipDownload { get; set; } = false;
 
+			[Description("完成后删除临时文件")]
+			[CommandOption("--del-after-done")]
+			[DefaultValue(true)]
+			public bool DelAfterDone { get; set; } = true;
+
+			[Description("ffmpeg可执行程序全路径, 例如 C:\\Tools\\ffmpeg.exe")]
+			[CommandOption("--ffmpeg-binary-path")]
+			public string FFmpegBinaryPath { get; set; } = "";
+
 			[Description("设置限速, 单位支持 MiB/s 或 KiB/s, 如: 15M 100K")]
 			[CommandOption("-R|--max-speed <SPEED>")]
 			[TypeConverter(typeof(DownloadSpeedConverter))]
@@ -129,6 +138,7 @@ namespace m3u8dlc
 		private string? m_sDownloadDir = null;
 		private string m_sDownloadFileNameFormat = "0";
 		private ProgressTask? m_task = null;
+		private readonly List<StreamFormat> m_streamFormats = new List<StreamFormat>();
 		private string? m_sTempConcatFilePath = null;
 
 		public override async Task<n32> ExecuteAsync([NotNull] CommandContext context, [NotNull] Settings settings)
@@ -149,6 +159,32 @@ namespace m3u8dlc
 			}
 			m_settings.ThreadCount = Math.Max(m_settings.ThreadCount, 1);
 			m_settings.DownloadRetryCount = Math.Max(m_settings.DownloadRetryCount, 0);
+			if (!m_settings.SkipMerge)
+			{
+				string sFFmpegPath = m_settings.FFmpegBinaryPath;
+				if (!string.IsNullOrEmpty(sFFmpegPath))
+				{
+					sFFmpegPath = PathUtility.GetLocalPath(sFFmpegPath);
+					if (!File.Exists(sFFmpegPath))
+					{
+						sFFmpegPath = "";
+					}
+				}
+				if (string.IsNullOrEmpty(sFFmpegPath))
+				{
+					string? sPath = PathUtility.FindExePath("ffmpeg");
+					if (sPath != null)
+					{
+						sFFmpegPath = sPath;
+					}
+					else
+					{
+						sFFmpegPath = "ffmpeg";
+					}
+				}
+				m_settings.FFmpegBinaryPath = sFFmpegPath;
+				FFmpegUtility.FFmpegPath = sFFmpegPath;
+			}
 			if (m_settings.MaxSpeed != null)
 			{
 				DownloadRecorder.SpeedLimit = m_settings.MaxSpeed;
@@ -233,11 +269,49 @@ namespace m3u8dlc
 					nExitCode = 1;
 					break;
 				}
+
+				_ = Directory.CreateDirectory(m_settings.SaveDir);
+				bool bIsAAC = false;
+				for (n32 i = 0; i < m_streamFormats.Count; i++)
+				{
+					if (m_streamFormats[i].IsAAC())
+					{
+						bIsAAC = true;
+						break;
+					}
+				}
+				string sOutputFilePath = Path.Combine(m_settings.SaveDir, m_settings.SaveName) + ".mp4";
+				AnsiConsole.MarkupLine("调用ffmpeg合并中...");
 				Debug.Assert(m_sTempConcatFilePath != null);
+				bResult = await FFmpegUtility.Convert(m_sTempConcatFilePath, sOutputFilePath, bIsAAC);
 				File.Delete(m_sTempConcatFilePath);
+				if (!bResult)
+				{
+					nExitCode = 1;
+					break;
+				}
+
+				if (!m_settings.DelAfterDone)
+				{
+					nExitCode = 0;
+					break;
+				}
+
+				if (Directory.Exists(m_settings.TempDir))
+				{
+					Directory.Delete(m_settings.TempDir, true);
+				}
 				//nExitCode = 0;
 			} while (false);
 
+			if (nExitCode == 0)
+			{
+				AnsiConsole.MarkupLine("[white on green]Done[/]");
+			}
+			else
+			{
+				AnsiConsole.MarkupLine("[white on red]Failed[/]");
+			}
 			return nExitCode;
 		}
 
@@ -291,6 +365,19 @@ namespace m3u8dlc
 				if (!File.Exists(sDownloadPath))
 				{
 					break;
+				}
+				if (!m_settings.SkipMerge)
+				{
+					AnsiConsole.MarkupLine("读取媒体信息...");
+					bResult = await FFmpegUtility.ReadStreamFormat(sDownloadPath, m_streamFormats);
+					if (!bResult)
+					{
+						break;
+					}
+					for (n32 i = 0; i < m_streamFormats.Count; i++)
+					{
+						AnsiConsole.MarkupLine($"[steelblue]{m_streamFormats[i].ToString().EscapeMarkup()}[/]");
+					}
 				}
 				m_task.Increment(1);
 				ParallelOptions parallelOptions = new ParallelOptions() { MaxDegreeOfParallelism = m_settings.ThreadCount };
