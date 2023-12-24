@@ -84,6 +84,11 @@ namespace m3u8dlc
 			[DefaultValue(3)]
 			public n32 DownloadRetryCount { get; set; } = 3;
 
+			[Description("跳过合并分片")]
+			[CommandOption("--skip-merge")]
+			[DefaultValue(false)]
+			public bool SkipMerge { get; set; } = false;
+
 			[Description("跳过下载")]
 			[CommandOption("--skip-download")]
 			[DefaultValue(false)]
@@ -116,6 +121,7 @@ namespace m3u8dlc
 
 		private const string ManifestFileName = "manifest.json";
 		private const string DownloadDirName = "0";
+		private const string ConcatFileName = "concat.ts";
 
 		private Settings? m_settings = null;
 		private Manifest? m_manifest = null;
@@ -123,6 +129,7 @@ namespace m3u8dlc
 		private string? m_sDownloadDir = null;
 		private string m_sDownloadFileNameFormat = "0";
 		private ProgressTask? m_task = null;
+		private string? m_sTempConcatFilePath = null;
 
 		public override async Task<n32> ExecuteAsync([NotNull] CommandContext context, [NotNull] Settings settings)
 		{
@@ -209,6 +216,25 @@ namespace m3u8dlc
 					nExitCode = 1;
 					break;
 				}
+
+				if (m_settings.SkipMerge)
+				{
+					nExitCode = 0;
+					break;
+				}
+
+				bResult = await concatFileAsync();
+				if (!bResult)
+				{
+					if (m_sTempConcatFilePath != null)
+					{
+						File.Delete(m_sTempConcatFilePath);
+					}
+					nExitCode = 1;
+					break;
+				}
+				Debug.Assert(m_sTempConcatFilePath != null);
+				File.Delete(m_sTempConcatFilePath);
 				//nExitCode = 0;
 			} while (false);
 
@@ -328,6 +354,55 @@ namespace m3u8dlc
 				File.Delete(sDownloadTempPath);
 			}
 			m_task.Increment(1);
+		}
+
+		private async Task<bool> concatFileAsync()
+		{
+			Debug.Assert(m_manifest != null);
+
+			Progress progress = AnsiConsole.Progress();
+			_ = progress.AutoClear(false);
+			_ = progress.Columns(new ProgressColumn[]
+			{
+				new TaskDescriptionColumn(),
+				new ElapsedTimeColumn(),
+				new ProgressBarColumn() { Width = 20 },
+				new CountPercentageColumn(m_manifest.MediaSegments.Count),
+				new RemainingTimeColumn(),
+				new SpinnerColumn(),
+			});
+			bool bResult = await progress.StartAsync(concatFileAsync);
+			return bResult;
+		}
+
+		private async Task<bool> concatFileAsync(ProgressContext context)
+		{
+			Debug.Assert(m_settings != null);
+			Debug.Assert(m_manifest != null);
+			Debug.Assert(m_sDownloadDir != null);
+
+			m_sTempConcatFilePath = Path.Combine(m_settings.TempDir, ConcatFileName);
+
+			List<MediaSegment> segments = m_manifest.MediaSegments;
+
+			m_task = context.AddTask(ConcatFileName, autoStart: false);
+			m_task.MaxValue = segments.Count;
+			m_task.StartTask();
+
+			using FileStream outputStream = new FileStream(m_sTempConcatFilePath, FileMode.Create, FileAccess.Write, FileShare.None);
+			for (n32 i = 0; i < segments.Count; i++)
+			{
+				MediaSegment segment = segments[i];
+				Debug.Assert(segment.Index != null);
+				string sDownloadFileName = segment.Index.Value.ToString(m_sDownloadFileNameFormat, CultureInfo.InvariantCulture) + ".ts";
+				string sDownloadPath = Path.Combine(m_sDownloadDir, sDownloadFileName);
+				using FileStream inputStream = File.OpenRead(sDownloadPath);
+				await inputStream.CopyToAsync(outputStream);
+				m_task.Increment(1);
+			}
+			bool bResult = m_task.IsFinished;
+			m_task.StopTask();
+			return bResult;
 		}
 	}
 }
