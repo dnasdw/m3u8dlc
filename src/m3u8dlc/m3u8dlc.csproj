@@ -13,4 +13,8 @@
     <PackageReference Include="Spectre.Console.Cli" Version="0.48.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <TrimmerRootDescriptor Include="TrimmerRoots.xml" />
+  </ItemGroup>
+
 </Project>
