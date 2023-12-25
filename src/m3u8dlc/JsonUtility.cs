@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Text.Encodings.Web;
 using System.Text.Json;
@@ -6,12 +7,15 @@ using System.Text.Json.Serialization;
 
 using Spectre.Console;
 
+using static sdw.cpp;
+
 namespace m3u8dlc
 {
 	public static class JsonUtility
 	{
 		private static readonly JsonSerializerOptions s_jsonSerializerOptions = new JsonSerializerOptions()
 		{
+			TypeInfoResolver = SourceGenerationContext.Default,
 			// 防止url被转义
 			Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
 			// 不输出null对象
@@ -44,6 +48,8 @@ namespace m3u8dlc
 			return true;
 		}
 
+		[UnconditionalSuppressMessage("Trimming", "IL2026:Members annotated with 'RequiresUnreferencedCodeAttribute' require dynamic access otherwise can break functionality when trimming application code", Justification = "<Pending>")]
+		[UnconditionalSuppressMessage("AOT", "IL3050:Calling members annotated with 'RequiresDynamicCodeAttribute' may break functionality when AOT compiling.", Justification = "<Pending>")]
 		public static bool SerializeString<T>(T? obj, ref string json)
 		{
 			// 如果不判断,空对象会序列化为null这4个字母
@@ -53,7 +59,7 @@ namespace m3u8dlc
 			}
 			try
 			{
-				json = JsonSerializer.Serialize(obj, s_jsonSerializerOptions);
+				json = JsonSerializer.Serialize(obj, typeof(T), s_jsonSerializerOptions);
 			}
 			catch (Exception ex)
 			{
@@ -89,6 +95,8 @@ namespace m3u8dlc
 			return obj != null;
 		}
 
+		[UnconditionalSuppressMessage("Trimming", "IL2026:Members annotated with 'RequiresUnreferencedCodeAttribute' require dynamic access otherwise can break functionality when trimming application code", Justification = "<Pending>")]
+		[UnconditionalSuppressMessage("AOT", "IL3050:Calling members annotated with 'RequiresDynamicCodeAttribute' may break functionality when AOT compiling.", Justification = "<Pending>")]
 		public static bool DeserializeString<T>(string json, ref T? obj)
 		{
 			if (string.IsNullOrEmpty(json))
@@ -97,7 +105,7 @@ namespace m3u8dlc
 			}
 			try
 			{
-				obj = JsonSerializer.Deserialize<T>(json, s_jsonSerializerOptions);
+				obj = reinterpret_cast<T>(JsonSerializer.Deserialize(json, typeof(T), s_jsonSerializerOptions));
 			}
 			catch (Exception ex)
 			{
