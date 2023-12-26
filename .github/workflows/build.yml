@@ -1,0 +1,254 @@
+name: build
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: release tag (Some good tag names might be v1.0.0 or v2.3.4.)
+        required: false
+      release:
+        description: release
+        required: false
+        type: boolean
+        default: false
+      draft:
+        description: draft
+        required: false
+        type: boolean
+        default: true
+      commit_id:
+        description: The branch, tag or SHA of the submodule to checkout.
+        required: false
+        default: master
+
+env:
+  DOTNET_VERSION: 8.0.x
+  GH_TOKEN: ${{ github.token }}
+  release_tag_exists: false
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+            ref: ${{ github.event.inputs.commit_id }}
+
+      - name: Setup .NET Core
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Build windows-x86
+        run: dotnet publish src/m3u8dlc -c Release -r win-x86 -o windows-x86 -p:PublishSingleFile=true -p:PublishTrimmed=true
+      - name: Compress windows-x86
+        run: 7z a ../m3u8dlc_windows-x86.zip m3u8dlc.exe
+        working-directory: ./windows-x86
+      - name: Build windows-x64
+        run: dotnet publish src/m3u8dlc -c Release -r win-x64 -o windows-x64 -p:PublishSingleFile=true -p:PublishTrimmed=true
+      - name: Compress windows-x64
+        run: 7z a ../m3u8dlc_windows-x64.zip m3u8dlc.exe
+        working-directory: ./windows-x64
+      - name: Build windows-arm64
+        run: dotnet publish src/m3u8dlc -c Release -r win-arm64 -o windows-arm64 -p:PublishSingleFile=true -p:PublishTrimmed=true
+      - name: Compress windows-arm64
+        run: 7z a ../m3u8dlc_windows-arm64.zip m3u8dlc.exe
+        working-directory: ./windows-arm64
+      - name: Build windows-x64-aot
+        run: dotnet publish src/m3u8dlc -c Release -r win-x64 -o windows-x64-aot -p:PublishAot=true -p:PublishTrimmed=true
+      - name: Compress windows-x64-aot
+        run: 7z a ../m3u8dlc_windows-x64-aot.zip m3u8dlc.exe
+        working-directory: ./windows-x64-aot
+      - name: Build windows-arm64-aot
+        run: dotnet publish src/m3u8dlc -c Release -r win-arm64 -o windows-arm64-aot -p:PublishAot=true -p:PublishTrimmed=true
+      - name: Compress windows-arm64-aot
+        run: 7z a ../m3u8dlc_windows-arm64-aot.zip m3u8dlc.exe
+        working-directory: ./windows-arm64-aot
+
+      - name: Upload windows-x86
+        uses: actions/upload-artifact@v3
+        with:
+          name: m3u8dlc_windows-x86
+          path: m3u8dlc_windows-x86.zip
+      - name: Upload windows-x64
+        uses: actions/upload-artifact@v3
+        with:
+          name: m3u8dlc_windows-x64
+          path: m3u8dlc_windows-x64.zip
+      - name: Upload windows-arm64
+        uses: actions/upload-artifact@v3
+        with:
+          name: m3u8dlc_windows-arm64
+          path: m3u8dlc_windows-arm64.zip
+      - name: Upload windows-x64-aot
+        uses: actions/upload-artifact@v3
+        with:
+          name: m3u8dlc_windows-x64-aot
+          path: m3u8dlc_windows-x64-aot.zip
+      - name: Upload windows-arm64-aot
+        uses: actions/upload-artifact@v3
+        with:
+          name: m3u8dlc_windows-arm64-aot
+          path: m3u8dlc_windows-arm64-aot.zip
+
+  build-linux:
+    runs-on: ubuntu-latest
+    container: mcr.microsoft.com/dotnet-buildtools/prereqs:ubuntu-18.04-cross-arm64
+    # container: ubuntu:18.04
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+            ref: ${{ github.event.inputs.commit_id }}
+
+      # - run: apt-get update
+      # - run: apt-get install -y curl wget
+      - name: Setup .NET Core
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Build linux-x64
+        run: dotnet publish src/m3u8dlc -c Release -r linux-x64 -o linux-x64 -p:PublishSingleFile=true -p:PublishTrimmed=true
+      - name: Compress linux-x64
+        run: tar -cvzf ../m3u8dlc_linux-x64.tar.gz m3u8dlc
+        working-directory: ./linux-x64
+      - name: Build linux-arm64
+        run: dotnet publish src/m3u8dlc -c Release -r linux-arm64 -o linux-arm64 -p:PublishSingleFile=true -p:PublishTrimmed=true
+      - name: Compress linux-arm64
+        run: tar -cvzf ../m3u8dlc_linux-arm64.tar.gz m3u8dlc
+        working-directory: ./linux-arm64
+      # - run: apt-get install -y clang zlib1g-dev
+      # - run: apt-get install -y libicu-dev
+      - name: Build linux-x64-aot
+        run: dotnet publish src/m3u8dlc -c Release -r linux-x64 -o linux-x64-aot -p:PublishAot=true -p:PublishTrimmed=true
+      - name: Compress linux-x64-aot
+        run: tar -cvzf ../m3u8dlc_linux-x64-aot.tar.gz m3u8dlc
+        working-directory: ./linux-x64-aot
+      - name: Build linux-arm64-aot
+        run: dotnet publish src/m3u8dlc -c Release -r linux-arm64 -o linux-arm64-aot -p:PublishAot=true -p:PublishTrimmed=true -p:CppCompilerAndLinker=clang-9 -p:SysRoot=/crossrootfs/arm64 -p:ObjCopyName=aarch64-linux-gnu-objcopy
+      - name: Compress linux-arm64-aot
+        run: tar -cvzf ../m3u8dlc_linux-arm64-aot.tar.gz m3u8dlc
+        working-directory: ./linux-arm64-aot
+
+      - name: Upload linux-x64
+        uses: actions/upload-artifact@v3
+        with:
+          name: m3u8dlc_linux-x64
+          path: m3u8dlc_linux-x64.tar.gz
+      - name: Upload linux-arm64
+        uses: actions/upload-artifact@v3
+        with:
+          name: m3u8dlc_linux-arm64
+          path: m3u8dlc_linux-arm64.tar.gz
+      - name: Upload linux-x64-aot
+        uses: actions/upload-artifact@v3
+        with:
+          name: m3u8dlc_linux-x64-aot
+          path: m3u8dlc_linux-x64-aot.tar.gz
+      - name: Upload linux-arm64-aot
+        uses: actions/upload-artifact@v3
+        with:
+          name: m3u8dlc_linux-arm64-aot
+          path: m3u8dlc_linux-arm64-aot.tar.gz
+
+  buuild-macos:
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+            ref: ${{ github.event.inputs.commit_id }}
+
+      - name: Setup .NET Core
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Build macos-x64
+        run: dotnet publish src/m3u8dlc -c Release -r osx-x64 -o macos-x64 -p:PublishSingleFile=true -p:PublishTrimmed=true
+      - name: Compress macos-x64
+        run: tar -cvzf ../m3u8dlc_macos-x64.tar.gz m3u8dlc
+        working-directory: ./macos-x64
+      - name: Build macos-arm64
+        run: dotnet publish src/m3u8dlc -c Release -r osx-arm64 -o macos-arm64 -p:PublishSingleFile=true -p:PublishTrimmed=true
+      - name: Compress macos-arm64
+        run: tar -cvzf ../m3u8dlc_macos-arm64.tar.gz m3u8dlc
+        working-directory: ./macos-arm64
+      - name: Build macos-x64-aot
+        run: dotnet publish src/m3u8dlc -c Release -r osx-x64 -o macos-x64-aot -p:PublishAot=true -p:PublishTrimmed=true
+      - name: Compress macos-x64-aot
+        run: tar -cvzf ../m3u8dlc_macos-x64-aot.tar.gz m3u8dlc
+        working-directory: ./macos-x64-aot
+      - name: Build macos-arm64-aot
+        run: dotnet publish src/m3u8dlc -c Release -r osx-arm64 -o macos-arm64-aot -p:PublishAot=true -p:PublishTrimmed=true
+      - name: Compress macos-arm64-aot
+        run: tar -cvzf ../m3u8dlc_macos-arm64-aot.tar.gz m3u8dlc
+        working-directory: ./macos-arm64-aot
+
+      - name: Upload macos-x64
+        uses: actions/upload-artifact@v3
+        with:
+          name: m3u8dlc_macos-x64
+          path: m3u8dlc_macos-x64.tar.gz
+      - name: Upload macos-arm64
+        uses: actions/upload-artifact@v3
+        with:
+          name: m3u8dlc_macos-arm64
+          path: m3u8dlc_macos-arm64.tar.gz
+      - name: Upload macos-x64-aot
+        uses: actions/upload-artifact@v3
+        with:
+          name: m3u8dlc_macos-x64-aot
+          path: m3u8dlc_macos-x64-aot.tar.gz
+      - name: Upload macos-arm64-aot
+        uses: actions/upload-artifact@v3
+        with:
+          name: m3u8dlc_macos-arm64-aot
+          path: m3u8dlc_macos-arm64-aot.tar.gz
+
+  create-release:
+    if: ${{ github.event.inputs.release == 'true' }}
+    needs: [build-windows, build-linux, buuild-macos]
+    runs-on: ubuntu-latest
+
+    steps:
+      - run: gh --version
+      - name: get release tag status
+        run: >
+          gh release view --repo '${{ github.repository }}' '${{ github.event.inputs.release_tag }}'
+          && echo "release_tag_exists=true" >> $GITHUB_ENV
+          || echo "release_tag_exists=false" >> $GITHUB_ENV
+      - run: echo "release_tag_exists -> ${{ env.release_tag_exists }}"
+
+      - name: checkout
+        if: ${{ env.release_tag_exists == 'false' }}
+        uses: actions/checkout@v4
+        with:
+            ref: ${{ github.event.inputs.commit_id }}
+
+      - name: create release
+        if: ${{ env.release_tag_exists == 'false' }}
+        run: >
+          gh release create --repo '${{ github.repository }}' '${{ github.event.inputs.release_tag }}'
+          --draft=${{ github.event.inputs.draft }}
+          --target '${{ github.event.inputs.commit_id }}'
+          --title '${{ github.event.repository.name }} ${{ github.event.inputs.release_tag }}'
+          --generate-notes
+
+  upload-release-assets:
+    if: ${{ github.event.inputs.release == 'true' }}
+    needs: create-release
+    runs-on: ubuntu-latest
+
+    steps:
+      - run: gh --version
+      - uses: actions/download-artifact@v3
+      - name: Display structure of downloaded files
+        run: ls -l -R
+
+      - name: upload release assets
+        run: >
+          gh release upload --repo '${{ github.repository }}' '${{ github.event.inputs.release_tag }}'
+          --clobber ./*/*.zip ./*/*.tar.gz
