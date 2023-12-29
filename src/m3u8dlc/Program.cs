@@ -379,7 +379,6 @@ namespace m3u8dlc
 						AnsiConsole.MarkupLine($"[steelblue]{m_streamFormats[i].ToString().EscapeMarkup()}[/]");
 					}
 				}
-				m_task.Increment(1);
 				ParallelOptions parallelOptions = new ParallelOptions() { MaxDegreeOfParallelism = m_settings.ThreadCount };
 				await Parallel.ForEachAsync(segments, parallelOptions, downloadMediaSegmentAsync);
 				bResult = m_task.IsFinished;

@@ -25,13 +25,13 @@ namespace m3u8dlc
 		public static async Task<n32> DownloadFileAsync(string url, string path, bool tempFile = false, DownloadRecorder? downloadRecorder = null, u64? recorderIndex = null)
 		{
 			u64 uRecorderIndex = recorderIndex != null ? recorderIndex.Value : 0;
+			string sUrl = url;
 			try
 			{
 				if (!tempFile && File.Exists(path))
 				{
 					return 0;
 				}
-				string sUrl = url;
 				// 用循环代替递归
 				do
 				{
@@ -120,6 +120,12 @@ namespace m3u8dlc
 			catch (Exception ex)
 			{
 				AnsiConsole.WriteException(ex, ExceptionFormats.ShortenEverything);
+				AnsiConsole.MarkupLine($"[red]url: {url.EscapeMarkup()}[/]");
+				if (sUrl != url)
+				{
+					AnsiConsole.MarkupLine($"[red]sUrl: {sUrl.EscapeMarkup()}[/]");
+				}
+				AnsiConsole.MarkupLine($"[red]path: {path.EscapeMarkup()}[/]");
 				if (downloadRecorder != null)
 				{
 					// 如果出错,清除本文件相关的大小,防止统计出错,重试时会重新设置这些值
