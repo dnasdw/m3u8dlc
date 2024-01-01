@@ -15,6 +15,7 @@ namespace m3u8dlc
 		public const string EXTM3U = "#EXTM3U";
 		// Media Segment Tags
 		public const string EXTINF = "#EXTINF";
+		public const string EXT_X_DISCONTINUITY = "#EXT-X-DISCONTINUITY";
 		// Media Playlist Tags
 		public const string EXT_X_TARGETDURATION = "#EXT-X-TARGETDURATION";
 		public const string EXT_X_ENDLIST = "#EXT-X-ENDLIST";
@@ -93,6 +94,19 @@ namespace m3u8dlc
 					{
 						// 非第一行必须不是#EXTM3U
 						return false;
+					}
+					else if (sLine == HLSTags.EXT_X_DISCONTINUITY)
+					{
+						if (bEndList)
+						{
+							return false;
+						}
+						// #EXTINF下没有url
+						if (tempMediaSegment.Index != null && tempMediaSegment.Url == null)
+						{
+							return false;
+						}
+						Manifest.DiscontinuityStarts.Add(uIndex);
 					}
 					else if (sLine.StartsWith(HLSTags.EXT_X_TARGETDURATION, StringComparison.Ordinal))
 					{
