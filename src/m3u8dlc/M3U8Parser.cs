@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.Specialized;
 using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Web;
 
 using static sdw.zzz;
 
@@ -30,6 +32,7 @@ namespace m3u8dlc
 
 		public Manifest Manifest { get; init; } = new Manifest();
 		public string LocalFile { get; set; } = "";
+		public string CompareFile { get; set; } = "";
 
 		private const string DownloadDirName = "0";
 
@@ -48,18 +51,21 @@ namespace m3u8dlc
 				return false;
 			}
 			StringBuilder localFileBuilder = new StringBuilder();
+			StringBuilder compareFileBuilder = new StringBuilder();
 			// 第一行必须是#EXTM3U
 			if (lines[0] != HLSTags.EXTM3U)
 			{
 				return false;
 			}
 			_ = localFileBuilder.Append(HLSTags.EXTM3U);
+			_ = compareFileBuilder.Append(HLSTags.EXTM3U);
 			u64 uIndex = 0;
 			MediaSegment tempMediaSegment = new MediaSegment();
 			bool bEndList = false;
 			for (n32 i = 1; i < lines.Count; i++)
 			{
 				_ = localFileBuilder.Append("\r\n");
+				_ = compareFileBuilder.Append("\r\n");
 				string sLine = lines[i];
 				if (sLine.Length == 0)
 				{
@@ -68,6 +74,7 @@ namespace m3u8dlc
 				if (sLine.StartsWith('#'))
 				{
 					_ = localFileBuilder.Append(sLine);
+					_ = compareFileBuilder.Append(sLine);
 					if (!sLine.StartsWith("#EXT", StringComparison.Ordinal))
 					{
 						// 忽略注释
@@ -152,6 +159,21 @@ namespace m3u8dlc
 					}
 					string sIndexPlaceHolder = $$"""{{{tempMediaSegment.Index}}}""";
 					_ = localFileBuilder.Append(sIndexPlaceHolder);
+					Uri uri = new Uri(sLine);
+					NameValueCollection queryParameters = HttpUtility.ParseQueryString(uri.Query);
+					queryParameters.Remove("qd_uid");
+					queryParameters.Remove("qd_vip");
+					queryParameters.Remove("qd_src");
+					queryParameters.Remove("qd_tm");
+					queryParameters.Remove("qd_p");
+					queryParameters.Remove("qd_k");
+					queryParameters.Remove("qd_sc");
+					queryParameters.Remove("qyid");
+					queryParameters.Remove("qd_vipres");
+					string? sQuery = queryParameters.ToString();
+					string sUrlWithoutQuery = uri.GetLeftPart(UriPartial.Path);
+					string sUrl = string.IsNullOrEmpty(sQuery) ? sUrlWithoutQuery : $"{sUrlWithoutQuery}?{sQuery}";
+					_ = compareFileBuilder.Append(sUrl);
 					tempMediaSegment.Url = sLine;
 					tempMediaSegment = new MediaSegment();
 				}
@@ -172,6 +194,7 @@ namespace m3u8dlc
 				_ = localFileBuilder.Replace(sIndexPlaceHolder, sRelativePath);
 			}
 			LocalFile = localFileBuilder.ToString();
+			CompareFile = compareFileBuilder.ToString();
 			return true;
 		}
 	}

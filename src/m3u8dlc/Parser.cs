@@ -53,6 +53,7 @@ namespace m3u8dlc
 				Manifest = m3u8Parser.Manifest;
 				TempFiles["orig.m3u8"] = m_sText;
 				TempFiles["local.m3u8"] = m3u8Parser.LocalFile;
+				TempFiles["compare.m3u8"] = m3u8Parser.CompareFile;
 			}
 			else
 			{
