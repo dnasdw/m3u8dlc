@@ -153,7 +153,7 @@ jobs:
           name: m3u8dlc_linux-arm64-aot
           path: m3u8dlc_linux-arm64-aot.tar.gz
 
-  buuild-macos:
+  build-macos:
     runs-on: macos-latest
 
     steps:
@@ -210,7 +210,7 @@ jobs:
 
   create-release:
     if: ${{ github.event.inputs.release == 'true' }}
-    needs: [build-windows, build-linux, buuild-macos]
+    needs: [build-windows, build-linux, build-macos]
     runs-on: ubuntu-latest
 
     steps:
